@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+// import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
@@ -21,5 +21,9 @@ public class Message {
         this.sender = sender;
         this.content = content;
         this.timeStamp= LocalDateTime.now();
+    }
+
+    public Message() {
+        //TODO Auto-generated constructor stub
     }
 }
