@@ -8,34 +8,14 @@ import { Stomp } from '@stomp/stompjs';
 import { getMessagesApi } from '../services/RoomServices';
 import timeAgo from '../config/helperFunction';
 
-// {
-//     content: "Hello, How are you guy's",
-//     sender: "preeti"
-// },
-// {
-//     content: "fabulus",
-//     sender: "Sohan"
-// },
-// {
-//     content: "Hello, What's your name",
-//     sender: "Monika"
-// },
-// {
-//     content: "Hello, What's your name",
-//     sender: "Vaishnavi"
-// },
-// {
-//     content: "Hello, What's your name",
-//     sender: "Kritika"
-// },
 
 export const ChatPage = () => {
     const { roomInfo, currentUser, connected, setConnected, setRoomInfo, setCurrentUser } = useChatContext();
     const navigate = useNavigate();
     const [messages, setMessages] = useState([])
     const [inputText, setInputText] = useState("");
-    const inputRef = useRef(null);
     const chatBoxRef = useRef(null);
+    const stompClientRef = useRef(null);
     const [stompClient, setStompClient] = useState(null);
 
     useEffect(() => {
@@ -71,46 +51,53 @@ export const ChatPage = () => {
                 behaviour: 'smooth'
             });
         }
-    }, [messages])
+    }, [roomInfo, connected,stompClientRef])
 
     // stompClient ko init karne honge
 
     // stompClient ko subscribe karna hoga
 
     useEffect(() => {
-
-        const connectWebSocket = () => {
-            const sock = new SockJS(`${baseURL}/chat`);
-            const client = Stomp.over(sock);
-            client.connect({}, () => {
-                setStompClient(client);
-                toast.success("connected....");
-                client.subscribe(`/topic/room/${roomInfo}`, (message) => {
-                    console.log(message);
-                    const newMessage = JSON.parse(message.body);
-                    setMessages((prev) => [...prev, newMessage]);
-                })
+        if (!connected || !roomInfo) return;
+    
+        const sock = new SockJS(`${baseURL}/chat`);
+        const client = Stomp.over(sock);
+    
+        client.connect({}, () => {
+            stompClientRef.current = client; // Store client in ref
+            toast.success("Connected...");
+    
+            client.subscribe(`/topic/room/${roomInfo}`, (message) => {
+                const newMessage = JSON.parse(message.body);
+                setMessages((prev) => [...prev, newMessage]); // Add new message
             });
+        });
+    
+        return () => {
+            if (stompClientRef.current) {
+                stompClientRef.current.disconnect();
+                console.log("WebSocket Disconnected");
+            }
         };
-        if (connected) {
-            connectWebSocket();
-        }
-    }, [roomInfo])
+    }, [roomInfo, connected]); 
 
     // send message handle
+   
+
     const sendMessage = async () => {
-        if (stompClient && connected && inputText.trim() !== "") {
-            console.log("message", inputText);
+        if (stompClientRef.current && connected && inputText.trim() !== "") {
             const message = {
                 sender: currentUser,
                 content: inputText,
                 roomId: roomInfo
-            }
-            stompClient.send(`/app/sendMessage/${roomInfo}`, {}, JSON.stringify(message));
-            setInputText("");
+            };
+            stompClientRef.current.send(`/app/sendMessage/${roomInfo}`, {}, JSON.stringify(message));
+            setMessages(prev=>[...prev,message]);
+            setInputText(""); // Clear input after sending
         }
-    }
+    };
 
+    
     const handleLogout = () => {
         stompClient.disconnect();
         setConnected(false);
